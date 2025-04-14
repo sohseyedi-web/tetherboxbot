@@ -13,6 +13,9 @@ let priceCache = {
   lastUpdated: 0,
 };
 
+// User subscriptions
+const userSubscriptions = new Map();
+
 // Update interval in milliseconds (5 minutes)
 const UPDATE_INTERVAL = 5 * 60 * 1000;
 
@@ -49,11 +52,45 @@ async function updatePriceCache() {
   }
 }
 
+// Function to send notifications to subscribed users
+async function sendNotificationsToUsers(bot) {
+  const now = Date.now();
+
+  for (const [userId, subscription] of userSubscriptions.entries()) {
+    try {
+      // Check if it's time to send a notification
+      if (now - subscription.lastNotification >= subscription.interval) {
+        // Get message with time info
+        const minutesAgo = Math.floor((now - priceCache.lastUpdated) / 60000);
+        const messageWithTime = `${priceCache.data}\n\n🕒 بروزرسانی ${minutesAgo} دقیقه پیش`;
+
+        // Send the price update
+        await bot.telegram.sendMessage(userId, messageWithTime);
+
+        // Update the last notification time
+        subscription.lastNotification = now;
+        userSubscriptions.set(userId, subscription);
+
+        console.log(`Sent scheduled price notification to user ${userId}`);
+      }
+    } catch (error) {
+      console.error(`Error sending notification to user ${userId}:`, error);
+    }
+  }
+}
+
 // Initialize cache on startup
 updatePriceCache();
 
 // Set up periodic update every 5 minutes
 setInterval(updatePriceCache, UPDATE_INTERVAL);
+
+// Check for notifications to send every minute
+function setupNotificationSystem(bot) {
+  setInterval(() => {
+    sendNotificationsToUsers(bot);
+  }, 60 * 1000); // Every minute
+}
 
 function onStart(ctx) {
   const name = ctx.from.first_name || "دوست عزیز";
@@ -83,7 +120,12 @@ async function onPrice(ctx) {
 
     const messageWithTime = `${priceCache.data}\n\n🕒 بروزرسانی ${minutesAgo} دقیقه پیش`;
 
-    return ctx.reply(messageWithTime);
+    return ctx.reply(messageWithTime, {
+      reply_markup: {
+        keyboard: [[{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }]],
+        resize_keyboard: true,
+      },
+    });
   }
 
   // If cache is invalid or expired, show waiting message and update
@@ -98,7 +140,14 @@ async function onPrice(ctx) {
     // If we have cache data after update, use it
     if (priceCache.data) {
       await ctx.deleteMessage(waitingMessage.message_id);
-      return ctx.reply(priceCache.data);
+      return ctx.reply(priceCache.data, {
+        reply_markup: {
+          keyboard: [
+            [{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }],
+          ],
+          resize_keyboard: true,
+        },
+      });
     }
 
     // If we still don't have cache data, fetch directly
@@ -126,12 +175,98 @@ async function onPrice(ctx) {
     });
 
     await ctx.deleteMessage(waitingMessage.message_id);
-    ctx.reply(message);
+    ctx.reply(message, {
+      reply_markup: {
+        keyboard: [[{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }]],
+        resize_keyboard: true,
+      },
+    });
   } catch (error) {
     console.error("خطا در دریافت قیمت:", error);
     await ctx.deleteMessage(waitingMessage.message_id);
     ctx.reply("خطا در دریافت قیمت");
   }
+}
+
+// Handler for auto notification setup
+function onSubscribe(ctx) {
+  ctx.reply(
+    "📊 دریافت خودکار قیمت تتر\n\n" +
+      "لطفا فاصله زمانی دریافت خودکار قیمت تتر را به ساعت وارد کنید.\n" +
+      "برای مثال: عدد 2 برای دریافت هر 2 ساعت یکبار\n\n" +
+      "توجه: حداقل فاصله زمانی 1 ساعت است.",
+    {
+      reply_markup: {
+        keyboard: [
+          [
+            { text: "2" },
+            { text: "3" },
+            { text: "6" },
+            { text: "12" },
+            { text: "24" },
+          ],
+          [{ text: "بازگشت" }],
+        ],
+        resize_keyboard: true,
+      },
+    }
+  );
+}
+
+// Handler for setting interval hours
+function onSetInterval(ctx) {
+  const text = ctx.message.text;
+
+  // Check if the input is a valid number
+  const hours = parseInt(text);
+
+  if (isNaN(hours) || hours < 1) {
+    return ctx.reply("⚠️ لطفا یک عدد بزرگتر از 1 وارد کنید.", {
+      reply_markup: {
+        keyboard: [
+          [
+            { text: "2" },
+            { text: "3" },
+            { text: "6" },
+            { text: "12" },
+            { text: "24" },
+          ],
+          [{ text: "بازگشت" }],
+        ],
+        resize_keyboard: true,
+      },
+    });
+  }
+
+  // Convert hours to milliseconds
+  const interval = hours * 60 * 60 * 1000;
+
+  // Add or update user subscription
+  userSubscriptions.set(ctx.from.id, {
+    interval,
+    lastNotification: Date.now(),
+  });
+
+  ctx.reply(
+    `✅ دریافت خودکار قیمت تتر هر ${hours} ساعت برای شما فعال شد.\n\n` +
+      "پیام‌های قیمت به صورت خودکار برای شما ارسال خواهند شد.",
+    {
+      reply_markup: {
+        keyboard: [[{ text: "درباره ربات" }, { text: "قیمت تتر" }]],
+        resize_keyboard: true,
+      },
+    }
+  );
+}
+
+// Handler for returning to main menu
+function onReturn(ctx) {
+  ctx.reply("بازگشت به منوی اصلی", {
+    reply_markup: {
+      keyboard: [[{ text: "درباره ربات" }, { text: "قیمت تتر" }]],
+      resize_keyboard: true,
+    },
+  });
 }
 
 function onHelp(ctx) {
@@ -154,6 +289,10 @@ function onHelp(ctx) {
 • قیمت‌ها هر ۵ دقیقه یک‌بار بروزرسانی می‌شوند.
 • در صورتی که قیمت‌ها از کش (Cache) خوانده شوند، ربات به شما اطلاع می‌دهد که آخرین بروزرسانی چند دقیقه پیش انجام شده است.
 
+🔔 <b>دریافت خودکار قیمت:</b>
+• می‌توانید با انتخاب گزینه "دریافت خودکار قیمت" پس از دیدن قیمت‌ها، تنظیم کنید که هر چند ساعت یکبار قیمت‌های جدید برای شما ارسال شوند.
+• حداقل فاصله زمانی ارسال خودکار قیمت‌ها 1 ساعت است.
+
 🧭 <b>دستورات قابل استفاده:</b>
 • <b>قیمت تتر</b> — دریافت آخرین قیمت تتر از چند صرافی
 • <b>درباره ربات</b> — اطلاعاتی درباره عملکرد ربات
@@ -169,4 +308,8 @@ module.exports = {
   onStart,
   onPrice,
   onHelp,
+  onSubscribe,
+  onSetInterval,
+  onReturn,
+  setupNotificationSystem,
 };
