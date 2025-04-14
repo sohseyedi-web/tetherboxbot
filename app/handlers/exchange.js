@@ -1,22 +1,20 @@
 const { fetchPrice } = require("../utils/functions");
 
 async function getNobitex() {
-  return fetchPrice(
-    "https://api.nobitex.ir/v3/orderbook/USDTIRT",
-    "نوبیتکس",
-    (data) => data?.lastTradePrice?.slice(0, -1)
+  return fetchPrice(process.env.API_NOBITEX, "نوبیتکس", (data) =>
+    data?.lastTradePrice?.slice(0, -1)
   );
 }
 
 async function getWallex() {
-  return fetchPrice("https://api.wallex.ir/v1/markets", "والکس", (data) =>
+  return fetchPrice(process.env.API_WALLEX, "والکس", (data) =>
     data?.result?.symbols?.USDTTMN?.stats?.lastPrice?.slice(0, 5)
   );
 }
 
 async function getTetherLand() {
   return fetchPrice(
-    "https://api.tetherland.com/currencies",
+    process.env.API_TETHERLAND,
     "تترلند",
     (data) => data?.data?.currencies?.USDT?.price
   );
@@ -24,7 +22,7 @@ async function getTetherLand() {
 
 async function getExir() {
   return fetchPrice(
-    "https://api.exir.io/v2/ticker?symbol=usdt-irt",
+    `${process.env.API_EXIR}?symbol=usdt-irt`,
     "اکسیر",
     (data) => data?.last
   );
