@@ -29,17 +29,13 @@ async function getExir() {
 }
 
 async function getBitPin() {
-  return fetchPrice(
-    "https://api.bitpin.ir/api/v1/mth/matches/USDT_IRT/",
-    "بیت پین",
-    (data) => data[0]?.price?.slice(0, 5)
+  return fetchPrice(process.env.API_BITPIN, "بیت پین", (data) =>
+    data[0]?.price?.slice(0, 5)
   );
 }
 async function getRamzinex() {
-  return fetchPrice(
-    "https://publicapi.ramzinex.com/exchange/api/v1.0/exchange/pairs/11",
-    "رمزینکس",
-    (data) => data?.data?.buy?.toString().slice(0, -1)
+  return fetchPrice(process.env.API_RAMZINEX, "رمزینکس", (data) =>
+    data?.data?.buy?.toString().slice(0, -1)
   );
 }
 
