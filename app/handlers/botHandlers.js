@@ -1,3 +1,4 @@
+const { formatPriceMessage } = require("../utils/functions");
 const {
   getTetherLand,
   getNobitex,
@@ -19,7 +20,6 @@ const userSubscriptions = new Map();
 // Update interval in milliseconds (5 minutes)
 const UPDATE_INTERVAL = 5 * 60 * 1000;
 
-// Function to fetch and update the cache
 async function updatePriceCache() {
   try {
     console.log("Updating price cache...");
@@ -37,30 +37,8 @@ async function updatePriceCache() {
       .map((result) => result.value);
 
     if (successfulResults.length > 0) {
-      // Sort prices from highest to lowest
-      successfulResults.sort((a, b) => {
-        // Extract numeric values from price strings and convert Persian digits to English digits
-        const convertToEnglishDigits = (str) => {
-          const persianDigits = /[۰-۹]/g;
-          return str.replace(persianDigits, function (d) {
-            return String.fromCharCode(d.charCodeAt(0) - 1728);
-          });
-        };
-
-        const priceStrA = convertToEnglishDigits(a.price);
-        const priceStrB = convertToEnglishDigits(b.price);
-
-        // Now extract numbers from the converted strings
-        const priceA = parseInt(priceStrA.replace(/[^\d]/g, ""));
-        const priceB = parseInt(priceStrB.replace(/[^\d]/g, ""));
-
-        return priceB - priceA; // Descending order (highest to lowest)
-      });
-
-      let message = "🔰 قیمت تتر:\n\n";
-      successfulResults.forEach((result) => {
-        message += `${result.name}: ${result.price}\n\n`;
-      });
+      // Format the message with sorted prices
+      const message = formatPriceMessage(successfulResults);
 
       // Update cache
       priceCache.data = message;
@@ -85,7 +63,15 @@ async function sendNotificationsToUsers(bot) {
         const messageWithTime = `${priceCache.data}\n\n🕒 بروزرسانی ${minutesAgo} دقیقه پیش`;
 
         // Send the price update
-        await bot.telegram.sendMessage(userId, messageWithTime);
+        await bot.telegram.sendMessage(userId, messageWithTime, {
+          reply_markup: {
+            keyboard: [
+              [{ text: "قیمت تتر" }],
+              [{ text: "لغو دریافت خودکار" }, { text: "درباره ربات" }],
+            ],
+            resize_keyboard: true,
+          },
+        });
 
         // Update the last notification time
         subscription.lastNotification = now;
@@ -112,6 +98,7 @@ function setupNotificationSystem(bot) {
   }, 60 * 1000); // Every minute
 }
 
+// Handler for start bot
 function onStart(ctx) {
   const name = ctx.from.first_name || "دوست عزیز";
 
@@ -128,6 +115,7 @@ function onStart(ctx) {
   });
 }
 
+// Handler for get price tether
 async function onPrice(ctx) {
   // Check if user has active subscription
   const hasActiveSubscription = userSubscriptions.has(ctx.from.id);
@@ -207,30 +195,8 @@ async function onPrice(ctx) {
       return ctx.reply("متأسفانه دریافت قیمت‌ها با خطا مواجه شد.");
     }
 
-    // Sort prices from highest to lowest
-    successfulResults.sort((a, b) => {
-      // Extract numeric values from price strings and convert Persian digits to English digits
-      const convertToEnglishDigits = (str) => {
-        const persianDigits = /[۰-۹]/g;
-        return str.replace(persianDigits, function (d) {
-          return String.fromCharCode(d.charCodeAt(0) - 1728);
-        });
-      };
-
-      const priceStrA = convertToEnglishDigits(a.price);
-      const priceStrB = convertToEnglishDigits(b.price);
-
-      // Now extract numbers from the converted strings
-      const priceA = parseInt(priceStrA.replace(/[^\d]/g, ""));
-      const priceB = parseInt(priceStrB.replace(/[^\d]/g, ""));
-
-      return priceB - priceA; // Descending order (highest to lowest)
-    });
-
-    let message = "🔰 قیمت تتر امروز (از بیشترین به کمترین):\n\n";
-    successfulResults.forEach((result) => {
-      message += `${result.name}: ${result.price}\n\n`;
-    });
+    // Format message with sorted prices
+    const message = formatPriceMessage(successfulResults);
 
     await ctx.deleteMessage(waitingMessage.message_id);
 
@@ -326,16 +292,6 @@ function onSetInterval(ctx) {
   );
 }
 
-// Handler for returning to main menu
-function onReturn(ctx) {
-  ctx.reply("بازگشت به منوی اصلی", {
-    reply_markup: {
-      keyboard: [[{ text: "درباره ربات" }, { text: "قیمت تتر" }]],
-      resize_keyboard: true,
-    },
-  });
-}
-
 // Handler for canceling subscription
 function onCancelSubscription(ctx) {
   const userId = ctx.from.id;
@@ -358,6 +314,17 @@ function onCancelSubscription(ctx) {
   }
 }
 
+// Handler for returning to main menu
+function onReturn(ctx) {
+  ctx.reply("بازگشت به منوی اصلی", {
+    reply_markup: {
+      keyboard: [[{ text: "درباره ربات" }, { text: "قیمت تتر" }]],
+      resize_keyboard: true,
+    },
+  });
+}
+
+// Handler for help robot
 function onHelp(ctx) {
   const helpMessage = `
 🤖 <b>راهنمای ربات تترباکس</b>
@@ -401,6 +368,6 @@ module.exports = {
   onSubscribe,
   onSetInterval,
   onReturn,
-  setupNotificationSystem,
   onCancelSubscription,
+  setupNotificationSystem,
 };
