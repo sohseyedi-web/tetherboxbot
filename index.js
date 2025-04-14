@@ -9,6 +9,7 @@ const {
   onSetInterval,
   onReturn,
   setupNotificationSystem,
+  onCancelSubscription,
 } = require("./app/handlers/botHandlers");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -22,6 +23,7 @@ bot.hears("درباره ربات", onHelp);
 
 // Subscription commands
 bot.hears("دریافت خودکار قیمت", onSubscribe);
+bot.hears("لغو دریافت خودکار", onCancelSubscription);
 bot.hears("بازگشت", onReturn);
 
 // Handle interval input (any number or predefined buttons)
@@ -33,7 +35,5 @@ setupNotificationSystem(bot);
 // Start bot
 bot.launch();
 console.log("🤖 Bot is running...");
-
-// Enable graceful stop
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
