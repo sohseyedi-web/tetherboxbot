@@ -37,7 +37,27 @@ async function updatePriceCache() {
       .map((result) => result.value);
 
     if (successfulResults.length > 0) {
-      let message = "🔰 قیمت تتر امروز:\n\n";
+      // Sort prices from highest to lowest
+      successfulResults.sort((a, b) => {
+        // Extract numeric values from price strings and convert Persian digits to English digits
+        const convertToEnglishDigits = (str) => {
+          const persianDigits = /[۰-۹]/g;
+          return str.replace(persianDigits, function (d) {
+            return String.fromCharCode(d.charCodeAt(0) - 1728);
+          });
+        };
+
+        const priceStrA = convertToEnglishDigits(a.price);
+        const priceStrB = convertToEnglishDigits(b.price);
+
+        // Now extract numbers from the converted strings
+        const priceA = parseInt(priceStrA.replace(/[^\d]/g, ""));
+        const priceB = parseInt(priceStrB.replace(/[^\d]/g, ""));
+
+        return priceB - priceA; // Descending order (highest to lowest)
+      });
+
+      let message = "🔰 قیمت تتر:\n\n";
       successfulResults.forEach((result) => {
         message += `${result.name}: ${result.price}\n\n`;
       });
@@ -187,7 +207,27 @@ async function onPrice(ctx) {
       return ctx.reply("متأسفانه دریافت قیمت‌ها با خطا مواجه شد.");
     }
 
-    let message = "🔰 قیمت تتر امروز:\n\n";
+    // Sort prices from highest to lowest
+    successfulResults.sort((a, b) => {
+      // Extract numeric values from price strings and convert Persian digits to English digits
+      const convertToEnglishDigits = (str) => {
+        const persianDigits = /[۰-۹]/g;
+        return str.replace(persianDigits, function (d) {
+          return String.fromCharCode(d.charCodeAt(0) - 1728);
+        });
+      };
+
+      const priceStrA = convertToEnglishDigits(a.price);
+      const priceStrB = convertToEnglishDigits(b.price);
+
+      // Now extract numbers from the converted strings
+      const priceA = parseInt(priceStrA.replace(/[^\d]/g, ""));
+      const priceB = parseInt(priceStrB.replace(/[^\d]/g, ""));
+
+      return priceB - priceA; // Descending order (highest to lowest)
+    });
+
+    let message = "🔰 قیمت تتر امروز (از بیشترین به کمترین):\n\n";
     successfulResults.forEach((result) => {
       message += `${result.name}: ${result.price}\n\n`;
     });
