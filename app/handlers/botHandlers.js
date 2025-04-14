@@ -39,7 +39,7 @@ async function updatePriceCache() {
     if (successfulResults.length > 0) {
       let message = "🔰 قیمت تتر امروز:\n\n";
       successfulResults.forEach((result) => {
-        message += `${result.name}: ${result.price}\n`;
+        message += `${result.name}: ${result.price}\n\n`;
       });
 
       // Update cache
@@ -142,9 +142,7 @@ async function onPrice(ctx) {
       await ctx.deleteMessage(waitingMessage.message_id);
       return ctx.reply(priceCache.data, {
         reply_markup: {
-          keyboard: [
-            [{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }],
-          ],
+          keyboard: [[{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }]],
           resize_keyboard: true,
         },
       });
@@ -171,7 +169,7 @@ async function onPrice(ctx) {
 
     let message = "🔰 قیمت تتر امروز:\n\n";
     successfulResults.forEach((result) => {
-      message += `${result.name}: ${result.price}\n`;
+      message += `${result.name}: ${result.price}\n\n`;
     });
 
     await ctx.deleteMessage(waitingMessage.message_id);
