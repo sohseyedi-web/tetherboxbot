@@ -109,6 +109,9 @@ function onStart(ctx) {
 }
 
 async function onPrice(ctx) {
+  // Check if user has active subscription
+  const hasActiveSubscription = userSubscriptions.has(ctx.from.id);
+
   // If cache is valid (has data and is less than 5 minutes old)
   if (
     priceCache.data &&
@@ -120,9 +123,17 @@ async function onPrice(ctx) {
 
     const messageWithTime = `${priceCache.data}\n\n🕒 بروزرسانی ${minutesAgo} دقیقه پیش`;
 
+    // Different keyboard based on whether user has active subscription
+    let keyboard;
+    if (hasActiveSubscription) {
+      keyboard = [[{ text: "بازگشت" }, { text: "لغو دریافت خودکار" }]];
+    } else {
+      keyboard = [[{ text: "بازگشت" }, { text: "دریافت خودکار قیمت" }]];
+    }
+
     return ctx.reply(messageWithTime, {
       reply_markup: {
-        keyboard: [[{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }]],
+        keyboard: keyboard,
         resize_keyboard: true,
       },
     });
@@ -140,9 +151,18 @@ async function onPrice(ctx) {
     // If we have cache data after update, use it
     if (priceCache.data) {
       await ctx.deleteMessage(waitingMessage.message_id);
+
+      // Different keyboard based on whether user has active subscription
+      let keyboard;
+      if (hasActiveSubscription) {
+        keyboard = [[{ text: "بازگشت" }, { text: "لغو دریافت خودکار" }]];
+      } else {
+        keyboard = [[{ text: "بازگشت" }, { text: "دریافت خودکار قیمت" }]];
+      }
+
       return ctx.reply(priceCache.data, {
         reply_markup: {
-          keyboard: [[{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }]],
+          keyboard: keyboard,
           resize_keyboard: true,
         },
       });
@@ -173,9 +193,18 @@ async function onPrice(ctx) {
     });
 
     await ctx.deleteMessage(waitingMessage.message_id);
+
+    // Different keyboard based on whether user has active subscription
+    let keyboard;
+    if (hasActiveSubscription) {
+      keyboard = [[{ text: "بازگشت" }, { text: "لغو دریافت خودکار" }]];
+    } else {
+      keyboard = [[{ text: "بازگشت" }, { text: "دریافت خودکار قیمت" }]];
+    }
+
     ctx.reply(message, {
       reply_markup: {
-        keyboard: [[{ text: "دریافت خودکار قیمت" }, { text: "بازگشت" }]],
+        keyboard: keyboard,
         resize_keyboard: true,
       },
     });
@@ -267,6 +296,28 @@ function onReturn(ctx) {
   });
 }
 
+// Handler for canceling subscription
+function onCancelSubscription(ctx) {
+  const userId = ctx.from.id;
+
+  if (userSubscriptions.has(userId)) {
+    userSubscriptions.delete(userId);
+    ctx.reply("✅ دریافت خودکار قیمت تتر برای شما غیرفعال شد.", {
+      reply_markup: {
+        keyboard: [[{ text: "درباره ربات" }, { text: "قیمت تتر" }]],
+        resize_keyboard: true,
+      },
+    });
+  } else {
+    ctx.reply("در حال حاضر ربات برای شما قیمتی ارسال نمیکند", {
+      reply_markup: {
+        keyboard: [[{ text: "درباره ربات" }, { text: "قیمت تتر" }]],
+        resize_keyboard: true,
+      },
+    });
+  }
+}
+
 function onHelp(ctx) {
   const helpMessage = `
 🤖 <b>راهنمای ربات تترباکس</b>
@@ -290,6 +341,7 @@ function onHelp(ctx) {
 🔔 <b>دریافت خودکار قیمت:</b>
 • می‌توانید با انتخاب گزینه "دریافت خودکار قیمت" پس از دیدن قیمت‌ها، تنظیم کنید که هر چند ساعت یکبار قیمت‌های جدید برای شما ارسال شوند.
 • حداقل فاصله زمانی ارسال خودکار قیمت‌ها 1 ساعت است.
+• برای لغو دریافت خودکار، گزینه "لغو دریافت خودکار" را پس از دریافت قیمت تتر انتخاب کنید.
 
 🧭 <b>دستورات قابل استفاده:</b>
 • <b>قیمت تتر</b> — دریافت آخرین قیمت تتر از چند صرافی
@@ -310,4 +362,5 @@ module.exports = {
   onSetInterval,
   onReturn,
   setupNotificationSystem,
+  onCancelSubscription,
 };
